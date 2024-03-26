@@ -2,6 +2,6 @@
 
 Change brightness of external monitors via DDC/CI protocol
 
-# Setup
+## Setup
 
-For this to work you need write access to /dev/i2c-*
+For this to work you need write access to `/dev/i2c-*`
