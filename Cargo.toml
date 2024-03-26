@@ -1,0 +1,12 @@
+[package]
+name = "cosmic-applet-external-monitor-brightness"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+ddc-hi = "0.4.1"
+
+[dependencies.libcosmic]
+git = "https://github.com/pop-os/libcosmic"
+default-features = false
+features = ["applet", "tokio", "wayland"]

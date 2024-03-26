@@ -1,0 +1,13 @@
+[Desktop Entry]
+Name=Cosmic Applet External Monitor Brightness
+Comment=Change brightness of external monitors via DDC/CI protocol
+Type=Application
+Exec=cosmic-applet-external-monitor-brightness
+Terminal=false
+Categories=Cosmic;Iced;
+Keywords=Cosmic;Iced;
+# Translators: Do NOT translate or transliterate this text (this is an icon file name)!
+Icon=display-symbolic
+StartupNotify=true
+NoDisplay=true
+X-CosmicApplet=true
