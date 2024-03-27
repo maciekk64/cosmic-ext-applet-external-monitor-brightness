@@ -74,25 +74,10 @@ impl cosmic::Application for Window {
                     destroy_popup(p)
                 } else {
                     if self.monitors.is_empty() {
-                        let mut monitors: Vec<Monitor> = vec![];
-                        for (id, display) in Display::enumerate().into_iter().enumerate() {
-                            monitors.push(Monitor {
-                                id,
-                                display,
-                                brightness: 0,
-                            });
-                        }
-                        self.monitors = monitors;
+                        self.init_monitors();
                     };
 
-                    for monitor in &mut self.monitors {
-                        monitor.brightness = monitor
-                            .display
-                            .handle
-                            .get_vcp_feature(0x10)
-                            .map(|v| v.value())
-                            .unwrap_or_default();
-                    }
+                    self.update_brightness();
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
@@ -172,6 +157,29 @@ impl cosmic::Application for Window {
 }
 
 impl Window {
+    fn init_monitors(&mut self) {
+        let mut monitors: Vec<Monitor> = vec![];
+        for (id, display) in Display::enumerate().into_iter().enumerate() {
+            monitors.push(Monitor {
+                id,
+                display,
+                brightness: 0,
+            });
+        }
+        self.monitors = monitors;
+    }
+
+    fn update_brightness(&mut self) {
+        for monitor in &mut self.monitors {
+            monitor.brightness = monitor
+                .display
+                .handle
+                .get_vcp_feature(0x10)
+                .map(|v| v.value())
+                .unwrap_or_default();
+        }
+    }
+
     fn set_screen_brightness(&mut self, id: usize, brightness: u16) {
         let monitor = &mut self.monitors[id];
         monitor.brightness = brightness;
