@@ -7,7 +7,7 @@ use cosmic::iced::{Command, Length, Limits};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_style::application;
 use cosmic::iced_widget::{row, Column};
-use cosmic::widget::{icon, slider, text};
+use cosmic::widget::{button, icon, slider, text};
 use cosmic::{Element, Theme};
 use ddc_hi::{Ddc, Display};
 
@@ -35,6 +35,7 @@ pub enum Message {
     TogglePopup,
     PopupClosed(Id),
     SetScreenBrightness(usize, u16),
+    ToggleMinMaxBrightness(usize),
 }
 
 impl cosmic::Application for Window {
@@ -115,6 +116,7 @@ impl cosmic::Application for Window {
             Message::SetScreenBrightness(id, brightness) => {
                 self.set_screen_brightness(id, brightness);
             }
+            Message::ToggleMinMaxBrightness(id) => self.toggle_min_max_brightness(id),
         }
         Command::none()
     }
@@ -138,9 +140,12 @@ impl cosmic::Application for Window {
             content.push(
                 padded_control(
                     row![
-                        icon::from_name(brightness_icon(monitor.brightness))
-                            .size(24)
-                            .symbolic(true),
+                        button::icon(
+                            icon::from_name(brightness_icon(monitor.brightness))
+                                .size(24)
+                                .symbolic(true)
+                        )
+                        .on_press(Message::ToggleMinMaxBrightness(monitor.id)),
                         slider(0..=100, monitor.brightness, |brightness| {
                             Message::SetScreenBrightness(monitor.id, brightness)
                         }),
@@ -171,6 +176,16 @@ impl Window {
         let monitor = &mut self.monitors[id];
         monitor.brightness = brightness;
         let _ = monitor.display.handle.set_vcp_feature(0x10, brightness);
+    }
+
+    fn toggle_min_max_brightness(&mut self, id: usize) {
+        self.set_screen_brightness(
+            id,
+            match self.monitors[id].brightness {
+                0 => 100,
+                _ => 0,
+            },
+        );
     }
 }
 
