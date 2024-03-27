@@ -87,8 +87,8 @@ impl cosmic::Application for Window {
                             .get_popup_settings(Id::MAIN, new_id, None, None, None);
                     popup_settings.positioner.size_limits = Limits::NONE
                         .max_width(372.0)
-                        .min_width(300.0)
-                        .min_height(200.0)
+                        // .min_width(300.0)
+                        // .min_height(200.0)
                         .max_height(1080.0);
                     get_popup(popup_settings)
                 };
