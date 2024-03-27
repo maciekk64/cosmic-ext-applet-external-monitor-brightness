@@ -113,9 +113,7 @@ impl cosmic::Application for Window {
                 }
             }
             Message::SetScreenBrightness(id, brightness) => {
-                let monitor = &mut self.monitors[id];
-                monitor.brightness = brightness;
-                let _ = monitor.display.handle.set_vcp_feature(0x10, brightness);
+                self.set_screen_brightness(id, brightness);
             }
         }
         Command::none()
@@ -165,6 +163,14 @@ impl cosmic::Application for Window {
 
     fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {
         Some(cosmic::applet::style())
+    }
+}
+
+impl Window {
+    fn set_screen_brightness(&mut self, id: usize, brightness: u16) {
+        let monitor = &mut self.monitors[id];
+        monitor.brightness = brightness;
+        let _ = monitor.display.handle.set_vcp_feature(0x10, brightness);
     }
 }
 
