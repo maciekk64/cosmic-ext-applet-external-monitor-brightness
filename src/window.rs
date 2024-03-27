@@ -56,10 +56,11 @@ impl cosmic::Application for Window {
         core: Core,
         _flags: Self::Flags,
     ) -> (Self, Command<cosmic::app::Message<Self::Message>>) {
-        let window = Window {
+        let mut window = Window {
             core,
             ..Default::default()
         };
+        window.init_monitors();
         (window, Command::none())
     }
 
@@ -73,10 +74,6 @@ impl cosmic::Application for Window {
                 return if let Some(p) = self.popup.take() {
                     destroy_popup(p)
                 } else {
-                    if self.monitors.is_empty() {
-                        self.init_monitors();
-                    };
-
                     self.update_brightness();
 
                     let new_id = Id::unique();
