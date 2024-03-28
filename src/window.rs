@@ -9,19 +9,14 @@ use cosmic::iced_style::application;
 use cosmic::iced_widget::{row, Column};
 use cosmic::widget::{button, icon, slider, text};
 use cosmic::{Element, Theme};
-use ddc_hi::{Ddc, Display};
+
+use crate::monitor::Monitor;
 
 const ID: &str = "com.maciekk64.CosmicAppletExternalMonitorBrightness";
 const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
 const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbolic";
 const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";
 const ICON_OFF: &str = "cosmic-applet-battery-display-brightness-off-symbolic";
-
-pub struct Monitor {
-    id: usize,
-    display: Display,
-    brightness: u16,
-}
 
 #[derive(Default)]
 pub struct Window {
@@ -56,11 +51,13 @@ impl cosmic::Application for Window {
         core: Core,
         _flags: Self::Flags,
     ) -> (Self, Command<cosmic::app::Message<Self::Message>>) {
-        let mut window = Window {
+        let monitors = Monitor::new_vec();
+        let window = Window {
             core,
+            monitors,
             ..Default::default()
         };
-        window.init_monitors();
+
         (window, Command::none())
     }
 
@@ -74,7 +71,9 @@ impl cosmic::Application for Window {
                 return if let Some(p) = self.popup.take() {
                     destroy_popup(p)
                 } else {
-                    self.update_brightness();
+                    for monitor in &mut self.monitors {
+                        monitor.update_brightness();
+                    }
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
@@ -96,9 +95,15 @@ impl cosmic::Application for Window {
                 }
             }
             Message::SetScreenBrightness(id, brightness) => {
-                self.set_screen_brightness(id, brightness);
+                self.monitors[id].set_screen_brightness(brightness);
             }
-            Message::ToggleMinMaxBrightness(id) => self.toggle_min_max_brightness(id),
+            Message::ToggleMinMaxBrightness(id) => {
+                let monitor = &mut self.monitors[id];
+                monitor.set_screen_brightness(match monitor.brightness {
+                    0 => 100,
+                    _ => 0,
+                });
+            }
         }
         Command::none()
     }
@@ -150,47 +155,6 @@ impl cosmic::Application for Window {
 
     fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {
         Some(cosmic::applet::style())
-    }
-}
-
-impl Window {
-    fn init_monitors(&mut self) {
-        let mut monitors: Vec<Monitor> = vec![];
-        for (id, display) in Display::enumerate().into_iter().enumerate() {
-            monitors.push(Monitor {
-                id,
-                display,
-                brightness: 0,
-            });
-        }
-        self.monitors = monitors;
-    }
-
-    fn update_brightness(&mut self) {
-        for monitor in &mut self.monitors {
-            monitor.brightness = monitor
-                .display
-                .handle
-                .get_vcp_feature(0x10)
-                .map(|v| v.value())
-                .unwrap_or_default();
-        }
-    }
-
-    fn set_screen_brightness(&mut self, id: usize, brightness: u16) {
-        let monitor = &mut self.monitors[id];
-        monitor.brightness = brightness;
-        let _ = monitor.display.handle.set_vcp_feature(0x10, brightness);
-    }
-
-    fn toggle_min_max_brightness(&mut self, id: usize) {
-        self.set_screen_brightness(
-            id,
-            match self.monitors[id].brightness {
-                0 => 100,
-                _ => 0,
-            },
-        );
     }
 }
 
