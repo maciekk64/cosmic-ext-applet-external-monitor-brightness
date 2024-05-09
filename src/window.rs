@@ -149,7 +149,7 @@ impl cosmic::Application for Window {
 
         self.core
             .applet
-            .popup_container(Column::with_children(content))
+            .popup_container(Column::with_children(content).padding([8, 0]))
             .into()
     }
 
