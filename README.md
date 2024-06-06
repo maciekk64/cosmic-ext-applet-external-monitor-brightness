@@ -1,4 +1,4 @@
-# Cosmic Applet External Monitor Brightness
+# External Monitor Brightness Applet for the COSMIC™ desktop
 
 Change brightness of external monitors via DDC/CI protocol
 

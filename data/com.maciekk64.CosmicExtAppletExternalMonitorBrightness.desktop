@@ -1,8 +1,8 @@
 [Desktop Entry]
-Name=Cosmic Applet External Monitor Brightness
+Name=External Monitor Brightness
 Comment=Change brightness of external monitors via DDC/CI protocol
 Type=Application
-Exec=cosmic-applet-external-monitor-brightness
+Exec=cosmic-ext-applet-external-monitor-brightness
 Terminal=false
 Categories=Cosmic;Iced;
 Keywords=Cosmic;Iced;

@@ -1,5 +1,5 @@
 [package]
-name = "cosmic-applet-external-monitor-brightness"
+name = "cosmic-ext-applet-external-monitor-brightness"
 version = "0.1.0"
 edition = "2021"
 

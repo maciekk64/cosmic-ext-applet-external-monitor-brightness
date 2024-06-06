@@ -12,7 +12,7 @@ use cosmic::{Element, Theme};
 
 use crate::monitor::Monitor;
 
-const ID: &str = "com.maciekk64.CosmicAppletExternalMonitorBrightness";
+const ID: &str = "com.maciekk64.CosmicExtAppletExternalMonitorBrightness";
 const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
 const ICON_MEDIUM: &str = "cosmic-applet-battery-display-brightness-medium-symbolic";
 const ICON_LOW: &str = "cosmic-applet-battery-display-brightness-low-symbolic";
