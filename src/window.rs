@@ -132,6 +132,7 @@ impl cosmic::Application for Window {
                                 .size(24)
                                 .symbolic(true)
                         )
+                        .tooltip(monitor.display.info.model_name.clone().unwrap_or_default())
                         .on_press(Message::ToggleMinMaxBrightness(monitor.id)),
                         slider(0..=100, monitor.brightness, |brightness| {
                             Message::SetScreenBrightness(monitor.id, brightness)
