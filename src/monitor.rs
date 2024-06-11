@@ -3,7 +3,6 @@ use ddc_hi::{Ddc, Display};
 const BRIGHTNESS_CODE: u8 = 0x10;
 
 pub struct Monitor {
-    pub id: usize,
     pub display: Display,
     pub brightness: u16,
 }
@@ -11,9 +10,8 @@ pub struct Monitor {
 impl Monitor {
     pub fn new_vec() -> Vec<Self> {
         let mut monitors: Vec<Monitor> = vec![];
-        for (id, display) in Display::enumerate().into_iter().enumerate() {
+        for display in Display::enumerate() {
             monitors.push(Monitor {
-                id,
                 display,
                 brightness: 0,
             });

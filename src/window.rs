@@ -123,7 +123,7 @@ impl cosmic::Application for Window {
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
         let mut content = vec![];
-        for monitor in &self.monitors {
+        for (id, monitor) in self.monitors.iter().enumerate() {
             content.push(
                 padded_control(
                     row![
@@ -133,9 +133,9 @@ impl cosmic::Application for Window {
                                 .symbolic(true)
                         )
                         .tooltip(monitor.display.info.model_name.clone().unwrap_or_default())
-                        .on_press(Message::ToggleMinMaxBrightness(monitor.id)),
-                        slider(0..=100, monitor.brightness, |brightness| {
-                            Message::SetScreenBrightness(monitor.id, brightness)
+                        .on_press(Message::ToggleMinMaxBrightness(id)),
+                        slider(0..=100, monitor.brightness, move |brightness| {
+                            Message::SetScreenBrightness(id, brightness)
                         }),
                         text(format!("{:.0}%", monitor.brightness))
                             .size(16)
