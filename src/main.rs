@@ -4,5 +4,5 @@ mod monitor;
 mod window;
 
 fn main() -> cosmic::iced::Result {
-    cosmic::applet::run::<Window>(true, ())
+    cosmic::applet::run::<Window>(false, ())
 }
