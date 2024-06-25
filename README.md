@@ -2,7 +2,7 @@
 
 Change brightness of external monitors via DDC/CI protocol
 
-![Screenshot](data/screenshot1.png)
+![Screenshot](res/screenshot1.png)
 
 ## Setup
 
