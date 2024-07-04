@@ -136,44 +136,38 @@ impl cosmic::Application for Window {
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
-        let mut content = vec![];
+        let mut content = Column::new();
         for (id, monitor) in self.monitors.iter().enumerate() {
-            content.push(
-                padded_control(
-                    row![
-                        button::icon(
-                            icon::from_name(brightness_icon(monitor.brightness))
-                                .size(24)
-                                .symbolic(true)
-                        )
-                        .tooltip(monitor.display.info.model_name.clone().unwrap_or_default())
-                        .on_press(Message::ToggleMinMaxBrightness(id)),
-                        slider(0..=100, monitor.brightness, move |brightness| {
-                            Message::SetScreenBrightness(id, brightness)
-                        }),
-                        text(format!("{:.0}%", monitor.brightness))
-                            .size(16)
-                            .width(Length::Fixed(40.0))
-                            .horizontal_alignment(Horizontal::Right)
-                    ]
-                    .spacing(12),
-                )
-                .into(),
-            )
+            content = content.push(padded_control(
+                row![
+                    button::icon(
+                        icon::from_name(brightness_icon(monitor.brightness))
+                            .size(24)
+                            .symbolic(true)
+                    )
+                    .tooltip(monitor.display.info.model_name.clone().unwrap_or_default())
+                    .on_press(Message::ToggleMinMaxBrightness(id)),
+                    slider(0..=100, monitor.brightness, move |brightness| {
+                        Message::SetScreenBrightness(id, brightness)
+                    }),
+                    text(format!("{:.0}%", monitor.brightness))
+                        .size(16)
+                        .width(Length::Fixed(40.0))
+                        .horizontal_alignment(Horizontal::Right)
+                ]
+                .spacing(12),
+            ));
         }
-        content.push(padded_control(divider::horizontal::default()).into());
-        content.push(
-            padded_control(row![
-                text("Dark mode").size(14).width(Length::Fill),
-                toggler(None, self.theme_mode_config.is_dark, Message::SetDarkMode)
-                    .width(Length::Shrink)
-            ])
-            .into(),
-        );
+        content = content.push(padded_control(divider::horizontal::default()));
+        content = content.push(padded_control(row![
+            text("Dark mode").size(14).width(Length::Fill),
+            toggler(None, self.theme_mode_config.is_dark, Message::SetDarkMode)
+                .width(Length::Shrink)
+        ]));
 
         self.core
             .applet
-            .popup_container(Column::with_children(content).padding([8, 0]))
+            .popup_container(content.padding([8, 0]))
             .into()
     }
 
