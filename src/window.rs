@@ -168,7 +168,9 @@ impl cosmic::Application for Window {
                 .spacing(12),
             ));
         }
-        content = content.push(padded_control(divider::horizontal::default()));
+        if !self.monitors.is_empty() {
+            content = content.push(padded_control(divider::horizontal::default()));
+        }
         content = content.push(
             container(
                 anim!(
