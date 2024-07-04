@@ -14,6 +14,7 @@ use cosmic::{Element, Theme};
 use cosmic_time::once_cell::sync::Lazy;
 use cosmic_time::{anim, chain, id, Instant, Timeline};
 
+use crate::fl;
 use crate::monitor::Monitor;
 
 static SHOW_MEDIA_CONTROLS: Lazy<id::Toggler> = Lazy::new(id::Toggler::unique);
@@ -173,7 +174,7 @@ impl cosmic::Application for Window {
                 anim!(
                     SHOW_MEDIA_CONTROLS,
                     &self.timeline,
-                    Some("Dark mode".to_string()),
+                    Some(fl!("dark-mode").to_string()),
                     self.theme_mode_config.is_dark,
                     Message::SetDarkMode,
                 )
