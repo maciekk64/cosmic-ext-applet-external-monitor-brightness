@@ -1,13 +1,15 @@
 use cosmic::app::Core;
 use cosmic::applet::padded_control;
+use cosmic::cosmic_config::CosmicConfigEntry;
+use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::wayland::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
 use cosmic::iced::{Command, Length, Limits};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_style::application;
-use cosmic::iced_widget::{row, Column};
-use cosmic::widget::{button, icon, slider, text};
+use cosmic::iced_widget::{row, toggler, Column};
+use cosmic::widget::{button, divider, icon, slider, text};
 use cosmic::{Element, Theme};
 
 use crate::monitor::Monitor;
@@ -23,6 +25,7 @@ pub struct Window {
     core: Core,
     popup: Option<Id>,
     monitors: Vec<Monitor>,
+    theme_mode_config: ThemeMode,
 }
 
 #[derive(Clone, Debug)]
@@ -31,6 +34,8 @@ pub enum Message {
     PopupClosed(Id),
     SetScreenBrightness(usize, u16),
     ToggleMinMaxBrightness(usize),
+    ThemeModeConfigChanged(ThemeMode),
+    SetDarkMode(bool),
 }
 
 impl cosmic::Application for Window {
@@ -104,6 +109,15 @@ impl cosmic::Application for Window {
                     _ => 0,
                 });
             }
+            Message::ThemeModeConfigChanged(config) => {
+                self.theme_mode_config = config;
+            }
+            Message::SetDarkMode(dark) => {
+                self.theme_mode_config.is_dark = dark;
+                if let Ok(helper) = ThemeMode::config() {
+                    _ = self.theme_mode_config.write_entry(&helper);
+                }
+            }
         }
         Command::none()
     }
@@ -147,11 +161,26 @@ impl cosmic::Application for Window {
                 .into(),
             )
         }
+        content.push(padded_control(divider::horizontal::default()).into());
+        content.push(
+            padded_control(row![
+                text("Dark mode").size(14).width(Length::Fill),
+                toggler(None, self.theme_mode_config.is_dark, Message::SetDarkMode)
+                    .width(Length::Shrink)
+            ])
+            .into(),
+        );
 
         self.core
             .applet
             .popup_container(Column::with_children(content).padding([8, 0]))
             .into()
+    }
+
+    fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
+        self.core
+            .watch_config(THEME_MODE_ID)
+            .map(|u| Message::ThemeModeConfigChanged(u.config))
     }
 
     fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {
