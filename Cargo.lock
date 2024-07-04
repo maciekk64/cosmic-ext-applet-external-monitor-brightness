@@ -871,6 +871,7 @@ dependencies = [
 name = "cosmic-ext-applet-external-monitor-brightness"
 version = "0.1.0"
 dependencies = [
+ "cosmic-time",
  "ddc-hi",
  "libcosmic",
 ]
@@ -941,6 +942,16 @@ dependencies = [
  "serde",
  "serde_json",
  "thiserror",
+]
+
+[[package]]
+name = "cosmic-time"
+version = "0.4.0"
+source = "git+https://github.com/pop-os/cosmic-time#714acf7ebc704a47429491c3fc81335b6e1f474a"
+dependencies = [
+ "float-cmp",
+ "libcosmic",
+ "once_cell",
 ]
 
 [[package]]

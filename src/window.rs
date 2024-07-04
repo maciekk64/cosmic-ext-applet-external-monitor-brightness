@@ -5,14 +5,18 @@ use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
 use cosmic::iced::alignment::Horizontal;
 use cosmic::iced::wayland::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Command, Length, Limits};
+use cosmic::iced::{Command, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
 use cosmic::iced_style::application;
-use cosmic::iced_widget::{row, toggler, Column};
-use cosmic::widget::{button, divider, icon, slider, text};
+use cosmic::iced_widget::{row, Column};
+use cosmic::widget::{button, container, divider, icon, slider, text};
 use cosmic::{Element, Theme};
+use cosmic_time::once_cell::sync::Lazy;
+use cosmic_time::{anim, chain, id, Instant, Timeline};
 
 use crate::monitor::Monitor;
+
+static SHOW_MEDIA_CONTROLS: Lazy<id::Toggler> = Lazy::new(id::Toggler::unique);
 
 const ID: &str = "io.github.maciekk64.CosmicExtAppletExternalMonitorBrightness";
 const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
@@ -26,6 +30,7 @@ pub struct Window {
     popup: Option<Id>,
     monitors: Vec<Monitor>,
     theme_mode_config: ThemeMode,
+    timeline: Timeline,
 }
 
 #[derive(Clone, Debug)]
@@ -35,7 +40,8 @@ pub enum Message {
     SetScreenBrightness(usize, u16),
     ToggleMinMaxBrightness(usize),
     ThemeModeConfigChanged(ThemeMode),
-    SetDarkMode(bool),
+    SetDarkMode(chain::Toggler, bool),
+    Frame(Instant),
 }
 
 impl cosmic::Application for Window {
@@ -82,6 +88,7 @@ impl cosmic::Application for Window {
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
+                    self.timeline = Timeline::new();
                     let mut popup_settings =
                         self.core
                             .applet
@@ -112,12 +119,14 @@ impl cosmic::Application for Window {
             Message::ThemeModeConfigChanged(config) => {
                 self.theme_mode_config = config;
             }
-            Message::SetDarkMode(dark) => {
+            Message::SetDarkMode(chain, dark) => {
+                self.timeline.set_chain(chain).start();
                 self.theme_mode_config.is_dark = dark;
                 if let Ok(helper) = ThemeMode::config() {
                     _ = self.theme_mode_config.write_entry(&helper);
                 }
             }
+            Message::Frame(now) => self.timeline.now(now),
         }
         Command::none()
     }
@@ -159,11 +168,20 @@ impl cosmic::Application for Window {
             ));
         }
         content = content.push(padded_control(divider::horizontal::default()));
-        content = content.push(padded_control(row![
-            text("Dark mode").size(14).width(Length::Fill),
-            toggler(None, self.theme_mode_config.is_dark, Message::SetDarkMode)
-                .width(Length::Shrink)
-        ]));
+        content = content.push(
+            container(
+                anim!(
+                    SHOW_MEDIA_CONTROLS,
+                    &self.timeline,
+                    Some("Dark mode".to_string()),
+                    self.theme_mode_config.is_dark,
+                    Message::SetDarkMode,
+                )
+                .text_size(14)
+                .width(Length::Fill),
+            )
+            .padding([8, 24]),
+        );
 
         self.core
             .applet
@@ -172,9 +190,14 @@ impl cosmic::Application for Window {
     }
 
     fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
-        self.core
-            .watch_config(THEME_MODE_ID)
-            .map(|u| Message::ThemeModeConfigChanged(u.config))
+        Subscription::batch(vec![
+            self.core
+                .watch_config(THEME_MODE_ID)
+                .map(|u| Message::ThemeModeConfigChanged(u.config)),
+            self.timeline
+                .as_subscription()
+                .map(|(_, now)| Message::Frame(now)),
+        ])
     }
 
     fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {

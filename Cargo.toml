@@ -5,6 +5,10 @@ edition = "2021"
 
 [dependencies]
 ddc-hi = "0.4.1"
+cosmic-time = { git = "https://github.com/pop-os/cosmic-time", default-features = false, features = [
+    "libcosmic",
+    "once_cell",
+] }
 
 [dependencies.libcosmic]
 git = "https://github.com/pop-os/libcosmic"
