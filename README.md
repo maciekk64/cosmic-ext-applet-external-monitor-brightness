@@ -1,6 +1,6 @@
 # External Monitor Brightness Applet for the COSMIC™ desktop
 
-Change brightness of external monitors via DDC/CI protocol
+Change brightness of external monitors via DDC/CI protocol. You can also quickly toggle system dark mode.
 
 ![Screenshot](res/screenshot1.png)
 
