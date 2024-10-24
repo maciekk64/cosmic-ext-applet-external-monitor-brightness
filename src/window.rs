@@ -1,23 +1,21 @@
-use cosmic::app::Core;
+use std::collections::HashMap;
+
+use cosmic::app::{Core, Task};
 use cosmic::applet::padded_control;
 use cosmic::cosmic_config::CosmicConfigEntry;
 use cosmic::cosmic_theme::{ThemeMode, THEME_MODE_ID};
-use cosmic::iced::alignment::Horizontal;
-use cosmic::iced::wayland::popup::{destroy_popup, get_popup};
 use cosmic::iced::window::Id;
-use cosmic::iced::{Command, Length, Limits, Subscription};
+use cosmic::iced::{Alignment, Length, Limits, Subscription};
 use cosmic::iced_runtime::core::window;
-use cosmic::iced_style::application;
-use cosmic::iced_widget::{row, Column};
-use cosmic::widget::{button, container, divider, icon, slider, text};
-use cosmic::{Element, Theme};
-use cosmic_time::once_cell::sync::Lazy;
-use cosmic_time::{anim, chain, id, Instant, Timeline};
-
-use crate::fl;
-use crate::monitor::Monitor;
-
-static SHOW_MEDIA_CONTROLS: Lazy<id::Toggler> = Lazy::new(id::Toggler::unique);
+use cosmic::iced_winit::commands::popup::{destroy_popup, get_popup};
+use cosmic::widget::{
+    button, column, divider, horizontal_space, icon, mouse_area, row, slider, text, toggler,
+};
+use cosmic::{iced_runtime, Element};
+// use tokio::sync::mpsc::Sender;
+use crate::monitor::{DisplayId, EventToSub, Monitor};
+use crate::{fl, monitor};
+use tokio::sync::watch::Sender;
 
 const ID: &str = "io.github.maciekk64.CosmicExtAppletExternalMonitorBrightness";
 const ICON_HIGH: &str = "cosmic-applet-battery-display-brightness-high-symbolic";
@@ -29,20 +27,31 @@ const ICON_OFF: &str = "cosmic-applet-battery-display-brightness-off-symbolic";
 pub struct Window {
     core: Core,
     popup: Option<Id>,
-    monitors: Vec<Monitor>,
+    monitors: HashMap<DisplayId, Monitor>,
     theme_mode_config: ThemeMode,
-    timeline: Timeline,
+    sender: Option<Sender<EventToSub>>,
 }
 
 #[derive(Clone, Debug)]
 pub enum Message {
     TogglePopup,
     PopupClosed(Id),
-    SetScreenBrightness(usize, u16),
-    ToggleMinMaxBrightness(usize),
+    SetScreenBrightness(String, u16),
+    ToggleMinMaxBrightness(String),
     ThemeModeConfigChanged(ThemeMode),
-    SetDarkMode(chain::Toggler, bool),
-    Frame(Instant),
+    SetDarkMode(bool),
+    Ready((HashMap<DisplayId, Monitor>, Sender<EventToSub>)),
+    BrightnessWasUpdated(DisplayId, u16),
+}
+
+impl Window {
+    pub fn send(&self, e: EventToSub) {
+        if let Some(sender) = &self.sender {
+            sender.send(e).unwrap();
+
+            // block_on(sender.send(e)).unwrap();
+        }
+    }
 }
 
 impl cosmic::Application for Window {
@@ -59,45 +68,39 @@ impl cosmic::Application for Window {
         &mut self.core
     }
 
-    fn init(
-        core: Core,
-        _flags: Self::Flags,
-    ) -> (Self, Command<cosmic::app::Message<Self::Message>>) {
-        let monitors = Monitor::new_vec();
+    fn init(core: Core, _flags: Self::Flags) -> (Self, Task<Self::Message>) {
         let window = Window {
             core,
-            monitors,
             ..Default::default()
         };
 
-        (window, Command::none())
+        (window, Task::none())
     }
 
     fn on_close_requested(&self, id: window::Id) -> Option<Message> {
         Some(Message::PopupClosed(id))
     }
 
-    fn update(&mut self, message: Self::Message) -> Command<cosmic::app::Message<Self::Message>> {
+    fn update(&mut self, message: Self::Message) -> Task<Self::Message> {
+        debug!("{:?}", message);
+
         match message {
             Message::TogglePopup => {
                 return if let Some(p) = self.popup.take() {
                     destroy_popup(p)
                 } else {
-                    for monitor in &mut self.monitors {
-                        monitor.update_brightness();
-                    }
+                    self.send(EventToSub::Refresh);
 
                     let new_id = Id::unique();
                     self.popup.replace(new_id);
-                    self.timeline = Timeline::new();
                     let mut popup_settings =
                         self.core
                             .applet
-                            .get_popup_settings(Id::MAIN, new_id, None, None, None);
+                            .get_popup_settings(Id::RESERVED, new_id, None, None, None);
                     popup_settings.positioner.size_limits = Limits::NONE
-                        .max_width(372.0)
-                        // .min_width(300.0)
-                        // .min_height(200.0)
+                        .max_width(250.0)
+                        .min_width(300.0)
+                        .min_height(200.0)
                         .max_height(1080.0);
                     get_popup(popup_settings)
                 };
@@ -108,28 +111,41 @@ impl cosmic::Application for Window {
                 }
             }
             Message::SetScreenBrightness(id, brightness) => {
-                self.monitors[id].set_screen_brightness(brightness);
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    monitor.brightness = brightness;
+                }
+                self.send(EventToSub::Set(id, brightness));
             }
             Message::ToggleMinMaxBrightness(id) => {
-                let monitor = &mut self.monitors[id];
-                monitor.set_screen_brightness(match monitor.brightness {
-                    0 => 100,
-                    _ => 0,
-                });
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    let new_val = match monitor.brightness {
+                        0 => 100,
+                        _ => 0,
+                    };
+                    monitor.brightness = new_val;
+                    self.send(EventToSub::Set(id, new_val));
+                }
             }
             Message::ThemeModeConfigChanged(config) => {
                 self.theme_mode_config = config;
             }
-            Message::SetDarkMode(chain, dark) => {
-                self.timeline.set_chain(chain).start();
+            Message::SetDarkMode(dark) => {
                 self.theme_mode_config.is_dark = dark;
                 if let Ok(helper) = ThemeMode::config() {
                     _ = self.theme_mode_config.write_entry(&helper);
                 }
             }
-            Message::Frame(now) => self.timeline.now(now),
+            Message::Ready((mon, sender)) => {
+                self.monitors = mon;
+                self.sender.replace(sender);
+            }
+            Message::BrightnessWasUpdated(id, value) => {
+                if let Some(monitor) = self.monitors.get_mut(&id) {
+                    monitor.brightness = value;
+                }
+            }
         }
-        Command::none()
+        Task::none()
     }
 
     fn view(&self) -> Element<Self::Message> {
@@ -137,74 +153,79 @@ impl cosmic::Application for Window {
             .applet
             .icon_button(
                 self.monitors
-                    .first()
+                    .values()
+                    .next()
                     .map(|v| brightness_icon(v.brightness))
-                    .unwrap_or(ICON_HIGH),
+                    .unwrap_or(ICON_OFF),
             )
             .on_press(Message::TogglePopup)
             .into()
     }
 
     fn view_window(&self, _id: Id) -> Element<Self::Message> {
-        let mut content = Column::new();
-        for (id, monitor) in self.monitors.iter().enumerate() {
-            content = content.push(padded_control(
-                row![
-                    button::icon(
-                        icon::from_name(brightness_icon(monitor.brightness))
-                            .size(24)
-                            .symbolic(true)
-                    )
-                    .tooltip(monitor.display.info.model_name.clone().unwrap_or_default())
-                    .on_press(Message::ToggleMinMaxBrightness(id)),
-                    slider(0..=100, monitor.brightness, move |brightness| {
-                        Message::SetScreenBrightness(id, brightness)
-                    }),
-                    text(format!("{:.0}%", monitor.brightness))
-                        .size(16)
-                        .width(Length::Fixed(40.0))
-                        .horizontal_alignment(Horizontal::Right)
-                ]
-                .spacing(12),
-            ));
-        }
-        if !self.monitors.is_empty() {
-            content = content.push(padded_control(divider::horizontal::default()));
-        }
-        content = content.push(
-            container(
-                anim!(
-                    SHOW_MEDIA_CONTROLS,
-                    &self.timeline,
-                    Some(fl!("dark-mode").to_string()),
-                    self.theme_mode_config.is_dark,
-                    Message::SetDarkMode,
-                )
-                .text_size(14)
-                .width(Length::Fill),
-            )
-            .padding([8, 24]),
-        );
-
         self.core
             .applet
-            .popup_container(content.padding([8, 0]))
+            .popup_container(
+                column()
+                    .padding([8, 0])
+                    .extend(self.monitors.iter().map(|(id, monitor)| {
+                        padded_control(
+                            row()
+                                .align_y(Alignment::Center)
+                                .push(
+                                    button::icon(
+                                        icon::from_name(brightness_icon(monitor.brightness))
+                                            .size(24)
+                                            .symbolic(true),
+                                    )
+                                    .tooltip(&monitor.name)
+                                    .on_press(Message::ToggleMinMaxBrightness(id.clone())),
+                                )
+                                .push(slider(0..=100, monitor.brightness, move |brightness| {
+                                    Message::SetScreenBrightness(id.clone(), brightness)
+                                }))
+                                .push(
+                                    text(format!("{:.0}%", monitor.brightness))
+                                        .size(16)
+                                        .width(Length::Fixed(40.0)),
+                                )
+                                .spacing(12),
+                        )
+                        .into()
+                    }))
+                    .push_maybe(if !self.monitors.is_empty() {
+                        Some(padded_control(divider::horizontal::default()))
+                    } else {
+                        None
+                    })
+                    .push(padded_control(
+                        mouse_area(
+                            row()
+                                .align_y(Alignment::Center)
+                                .push(text(fl!("dark-mode")))
+                                .push(horizontal_space())
+                                .push(
+                                    toggler(self.theme_mode_config.is_dark)
+                                        .on_toggle(Message::SetDarkMode),
+                                ),
+                        )
+                        .on_press(Message::SetDarkMode(!self.theme_mode_config.is_dark)),
+                    )),
+            )
             .into()
     }
 
-    fn subscription(&self) -> cosmic::iced::Subscription<Self::Message> {
+    fn style(&self) -> Option<iced_runtime::Appearance> {
+        Some(cosmic::applet::style())
+    }
+
+    fn subscription(&self) -> Subscription<Self::Message> {
         Subscription::batch(vec![
             self.core
                 .watch_config(THEME_MODE_ID)
                 .map(|u| Message::ThemeModeConfigChanged(u.config)),
-            self.timeline
-                .as_subscription()
-                .map(|(_, now)| Message::Frame(now)),
+            Subscription::run(monitor::sub),
         ])
-    }
-
-    fn style(&self) -> Option<<Theme as application::StyleSheet>::Style> {
-        Some(cosmic::applet::style())
     }
 }
 
